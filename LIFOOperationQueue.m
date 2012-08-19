@@ -69,10 +69,7 @@
 
 - (void)addOperationWithBlock:(void (^)(void))block {
     NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:^{
-        dispatch_queue_t queue = dispatch_queue_create("lifoqueue", NULL);
-        dispatch_async(queue, ^{
-            block();
-        });
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), block);
     }];
     
     [self addOperation:op];
@@ -108,7 +105,12 @@
     if ( self.runningOperations.count < self.maxConcurrentOperations ) {
         NSOperation *nextOp = [self nextOperation];
         if (nextOp) {
-            [self startOperation:nextOp];
+            if ( !nextOp.isExecuting ) {
+                [self startOperation:nextOp];
+            }
+            else {
+                [self startNextOperation];
+            }
         }
     }
 }
@@ -147,7 +149,7 @@
 - (NSOperation *)nextOperation {
     for (int i = 0; i < self.operations.count; i++) {
         NSOperation *operation = [self.operations objectAtIndex:i];
-        if ( ![self.runningOperations containsObject:operation] && operation.isReady ) {
+        if ( ![self.runningOperations containsObject:operation] && !operation.isExecuting && operation.isReady ) {
             return operation;
         }
     }
