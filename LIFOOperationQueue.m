@@ -59,7 +59,7 @@
     [self.operations insertObject:op atIndex:0];
     
     if ( self.runningOperations.count < self.maxConcurrentOperations ) {
-        [self startOperation:op];
+        [self startNextOperation];
     }
 }
 
@@ -146,7 +146,7 @@
 - (NSOperation *)nextOperation {
     for (int i = 0; i < self.operations.count; i++) {
         NSOperation *operation = [self.operations objectAtIndex:i];
-        if ( ![self.runningOperations containsObject:operation] ) {
+        if ( ![self.runningOperations containsObject:operation] && operation.isReady ) {
             return operation;
         }
     }
