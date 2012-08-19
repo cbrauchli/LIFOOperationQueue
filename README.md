@@ -11,7 +11,7 @@ A LIFO queue can help priortize new operations over old ones. One such example w
 How does it work?
 -----------------
 
-LIFOOperationQueue is very much like `NSOperationQueue`. You can configure the maximum number of concurrent operations. The only difference is that operations are added to the front of the queue and `NSOperationQueuePriority` has no effect. Initialization looks like this:
+LIFOOperationQueue is very much like `NSOperationQueue`. Just like the native implementation, you can configure the maximum number of concurrent operations. The only difference is that operations are added to the front of the queue and `NSOperationQueuePriority` has no effect. Initialization looks like this:
 
 	// initialize LIFOOperationQueue with a maximum thread count of 4
 	LIFOOperationQueue *operationQueue = [[LIFOOperationQueue alloc] initWithMaxConcurrentOperationCount:4];
