@@ -108,7 +108,7 @@
 }
 
 //
-// Starts operations and distributes among threads
+// Starts operations
 //
 
 - (void)startOperation:(NSOperation *)op  {
