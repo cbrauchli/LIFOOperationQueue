@@ -16,7 +16,7 @@ LIFOOperationQueue is very much like `NSOperationQueue`. Just like the native im
 	// initialize LIFOOperationQueue with a maximum thread count of 4
 	LIFOOperationQueue *operationQueue = [[LIFOOperationQueue alloc] initWithMaxConcurrentOperationCount:4];
 
-Here is a quick example of loading images in  `UITableView` with [AFNetworking](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&ved=0CEcQFjAA&url=https%3A%2F%2Fgithub.com%2FAFNetworking%2FAFNetworking&ei=jTwxUNnPNY6NigLmuYHoAw&usg=AFQjCNE6c3SnPVzdrmQ1-UQ5mEf8Kl9JXg&sig2=WtTzATbO_YTH888N5ZEcAQ) and LIFOOperationQueue.
+Here are some quick examples of loading images in a `UITableView` with [AFNetworking](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&ved=0CEcQFjAA&url=https%3A%2F%2Fgithub.com%2FAFNetworking%2FAFNetworking&ei=jTwxUNnPNY6NigLmuYHoAw&usg=AFQjCNE6c3SnPVzdrmQ1-UQ5mEf8Kl9JXg&sig2=WtTzATbO_YTH888N5ZEcAQ) and LIFOOperationQueue.
 
 	- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
  		// create cell
@@ -38,7 +38,28 @@ Here is a quick example of loading images in  `UITableView` with [AFNetworking](
 	    return cell;
 	}
 
-The code above would prioritize the latest cell's image over thsoe that may not be on screen anymore.
+The code above would prioritize the latest cell's image over thsoe that may not be on screen anymore. You can accomplish the same thing without AFNetworking by using blocks.
+
+	- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+ 		// create cell
+	    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"CellIdentifier"];
+	    if (cell == nil) {
+	        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"CellIdentifier"];
+	    }
+
+	    // add block to LIFOOperationQueue
+	    [self.operationQueue addOperationWithBlock:^{
+			UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:url]]];
+		        
+			dispatch_sync(dispatch_get_main_queue(), ^{
+		    	    cell.imageView.image = image;
+			});
+	    }];
+	    
+	    return cell;
+	}
+
+`addOperationWithBlock:` executes the block asynchronously by default.
 
 License
 -------
