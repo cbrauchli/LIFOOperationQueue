@@ -12,7 +12,7 @@
 @property (nonatomic, strong) NSMutableIndexSet *busyQueues;
 
 - (void)startNextOperation;
-- (void)startOperation:(NSOperation *)op onQueue:(NSInteger)queueIndex;
+- (void)startOperation:(NSOperation *)op onThread:(NSInteger)threadIndex;
 
 @end
 
@@ -60,9 +60,9 @@
     
     [self.operations insertObject:op atIndex:0];
     
-    NSUInteger freeQueue = [self nextAvailableThread];
-    if ( freeQueue != NSNotFound ) {
-        [self startOperation:op onQueue:freeQueue];
+    NSUInteger openThread = [self nextAvailableThread];
+    if ( openThread != NSNotFound ) {
+        [self startOperation:op onThread:openThread];
     }
 }
 
@@ -102,20 +102,20 @@
         return;
     }
     
-    NSUInteger freeQueue = [self nextAvailableThread];
-    if ( freeQueue != NSNotFound ) {
+    NSUInteger openThread = [self nextAvailableThread];
+    if ( openThread != NSNotFound ) {
         NSOperation *nextOp = [self nextOperation];
         if (nextOp) {
-            [self startOperation:nextOp onQueue:freeQueue];
+            [self startOperation:nextOp onThread:openThread];
         }
     }
 }
 
 //
-// Starts operation and manages threads
+// Starts operations and distributes among threads
 //
 
-- (void)startOperation:(NSOperation *)op onQueue:(NSInteger)queueIndex {
+- (void)startOperation:(NSOperation *)op onThread:(NSInteger)threadIndex {
     void (^completion)() = [op.completionBlock copy];
     
     NSOperation *blockOp = op;
@@ -123,17 +123,15 @@
     [op setCompletionBlock:^{
         completion();
         
-        [self.busyQueues removeIndex:queueIndex];
+        [self.busyQueues removeIndex:threadIndex];
         [self.runningOperations removeObject:blockOp];
         [self.operations removeObject:blockOp];
         
-        NSLog(@"completed operation: %d remaining", self.operations.count);
-                
         [self startNextOperation];
     }];
     
     [self.runningOperations addObject:op];
-    [self.busyQueues addIndex:queueIndex];
+    [self.busyQueues addIndex:threadIndex];
     
     [op start];
 }
