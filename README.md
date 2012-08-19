@@ -51,6 +51,7 @@ The code above would prioritize the latest cell's image over thsoe that may not 
 	    [self.operationQueue addOperationWithBlock:^{
 			UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:url]]];
 		        
+		        // be sure to display image on main thread
 			dispatch_sync(dispatch_get_main_queue(), ^{
 		    	    cell.imageView.image = image;
 			});
