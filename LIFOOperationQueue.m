@@ -9,10 +9,9 @@
 @interface LIFOOperationQueue ()
 
 @property (nonatomic, strong) NSMutableArray *runningOperations;
-@property (nonatomic, strong) NSMutableIndexSet *busyQueues;
 
 - (void)startNextOperation;
-- (void)startOperation:(NSOperation *)op onThread:(NSInteger)threadIndex;
+- (void)startOperation:(NSOperation *)op;
 
 @end
 
@@ -20,7 +19,6 @@
 
 @synthesize maxConcurrentOperations;
 @synthesize operations;
-@synthesize busyQueues;
 @synthesize runningOperations;
 
 #pragma mark - Initialization
@@ -30,7 +28,7 @@
     
     if (self) {
         self.operations = [NSMutableArray array];
-        self.busyQueues = [NSMutableIndexSet indexSet];
+        self.runningOperations = [NSMutableArray array];
     }
     
     return self;
@@ -60,9 +58,8 @@
     
     [self.operations insertObject:op atIndex:0];
     
-    NSUInteger openThread = [self nextAvailableThread];
-    if ( openThread != NSNotFound ) {
-        [self startOperation:op onThread:openThread];
+    if ( self.runningOperations.count < self.maxConcurrentOperations ) {
+        [self startOperation:op];
     }
 }
 
@@ -102,11 +99,10 @@
         return;
     }
     
-    NSUInteger openThread = [self nextAvailableThread];
-    if ( openThread != NSNotFound ) {
+    if ( self.runningOperations.count < self.maxConcurrentOperations ) {
         NSOperation *nextOp = [self nextOperation];
         if (nextOp) {
-            [self startOperation:nextOp onThread:openThread];
+            [self startOperation:nextOp];
         }
     }
 }
@@ -115,7 +111,7 @@
 // Starts operations and distributes among threads
 //
 
-- (void)startOperation:(NSOperation *)op onThread:(NSInteger)threadIndex {
+- (void)startOperation:(NSOperation *)op  {
     void (^completion)() = [op.completionBlock copy];
     
     NSOperation *blockOp = op;
@@ -123,7 +119,6 @@
     [op setCompletionBlock:^{
         completion();
         
-        [self.busyQueues removeIndex:threadIndex];
         [self.runningOperations removeObject:blockOp];
         [self.operations removeObject:blockOp];
         
@@ -131,26 +126,11 @@
     }];
     
     [self.runningOperations addObject:op];
-    [self.busyQueues addIndex:threadIndex];
     
     [op start];
 }
 
 #pragma mark - Queue Information
-
-//
-// Returns next open thread index
-//
-
-- (NSUInteger)nextAvailableThread {
-    for (NSUInteger i = 0; i < self.maxConcurrentOperations; i++) {
-        if ( ![self.busyQueues containsIndex:i] ) {
-            return i;
-        }
-    }
-    
-    return NSNotFound;
-}
 
 //
 // Returns next operation that is not already running
