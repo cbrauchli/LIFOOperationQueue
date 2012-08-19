@@ -68,7 +68,12 @@
 //
 
 - (void)addOperationWithBlock:(void (^)(void))block {
-    NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:block];
+    NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:^{
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+            block();
+        });
+    }];
+    
     [self addOperation:op];
 }
 
@@ -117,7 +122,9 @@
     NSOperation *blockOp = op;
     
     [op setCompletionBlock:^{
-        completion();
+        if (completion) {
+            completion();
+        }
         
         [self.runningOperations removeObject:blockOp];
         [self.operations removeObject:blockOp];
