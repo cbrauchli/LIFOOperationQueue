@@ -69,7 +69,8 @@
 
 - (void)addOperationWithBlock:(void (^)(void))block {
     NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:^{
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        dispatch_queue_t queue = dispatch_queue_create("lifoqueue", NULL);
+        dispatch_async(queue, ^{
             block();
         });
     }];
