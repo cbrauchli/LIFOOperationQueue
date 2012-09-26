@@ -160,9 +160,8 @@
     
     @synchronized(self) {
         [self.runningOperations addObject:op];
+        [op start];
     }
-    
-    [op start];
 }
 
 #pragma mark - Queue Information
