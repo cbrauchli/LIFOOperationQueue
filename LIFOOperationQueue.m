@@ -2,6 +2,7 @@
 //  LIFOOperationQueue.m
 //
 //  Created by Ben Harris on 8/19/12.
+//  Modified by Chris Brauchli on 9/26/12.
 //
 
 #import "LIFOOperationQueue.h"
@@ -20,6 +21,7 @@
 @synthesize maxConcurrentOperations;
 @synthesize operations;
 @synthesize runningOperations;
+@synthesize suspended;
 
 #pragma mark - Initialization
 
@@ -44,6 +46,23 @@
     return self;
 }
 
+#pragma mark - Suspension
+
+- (BOOL)isSuspended {
+    @synchronized(self) {
+        return suspended;
+    }
+}
+
+- (void)setSuspended:(BOOL)shouldSuspend {
+    @synchronized(self) {
+        suspended = shouldSuspend;
+    }
+    if (!shouldSuspend) {
+        [self startNextOperation];
+    }
+}
+
 #pragma mark - Operation Management
 
 //
@@ -52,15 +71,15 @@
 //
 
 - (void)addOperation:(NSOperation *)op {
-    if ( [self.operations containsObject:op] ) {
-        [self.operations removeObject:op];
+    @synchronized(self) {
+        if ( [self.operations containsObject:op] ) {
+            [self.operations removeObject:op];
+        }
+        
+        [self.operations insertObject:op atIndex:0];
     }
     
-    [self.operations insertObject:op atIndex:0];
-    
-    if ( self.runningOperations.count < self.maxConcurrentOperations ) {
-        [self startNextOperation];
-    }
+    [self startNextOperation];
 }
 
 //
@@ -80,14 +99,16 @@
 //
 
 - (void)cancelAllOperations {
-    self.operations = [NSMutableArray array];
-    
-    for (int i = 0; i < self.runningOperations.count; i++) {
-        NSOperation *runningOp = [self.runningOperations objectAtIndex:i];
-        [runningOp cancel];
+    @synchronized(self) {
+        self.operations = [NSMutableArray array];
         
-        [self.runningOperations removeObject:runningOp];
-        i--;
+        for (int i = 0; i < self.runningOperations.count; i++) {
+            NSOperation *runningOp = [self.runningOperations objectAtIndex:i];
+            [runningOp cancel];
+            
+            [self.runningOperations removeObject:runningOp];
+            i--;
+        }
     }
 }
 
@@ -98,7 +119,7 @@
 //
 
 - (void)startNextOperation {
-    if ( !self.operations.count ) {
+    if ( !self.operations.count || self.suspended) {
         return;
     }
     
@@ -129,13 +150,17 @@
             completion();
         }
         
-        [self.runningOperations removeObject:blockOp];
-        [self.operations removeObject:blockOp];
+        @synchronized(self) {
+            [self.runningOperations removeObject:blockOp];
+            [self.operations removeObject:blockOp];
+        }
         
         [self startNextOperation];
     }];
     
-    [self.runningOperations addObject:op];
+    @synchronized(self) {
+        [self.runningOperations addObject:op];
+    }
     
     [op start];
 }
@@ -147,10 +172,11 @@
 //
 
 - (NSOperation *)nextOperation {
-    for (int i = 0; i < self.operations.count; i++) {
-        NSOperation *operation = [self.operations objectAtIndex:i];
-        if ( ![self.runningOperations containsObject:operation] && !operation.isExecuting && operation.isReady ) {
-            return operation;
+    @synchronized(self) {
+        for (NSOperation *operation in self.operations) {
+            if ( ![self.runningOperations containsObject:operation] && !operation.isExecuting && operation.isReady ) {
+                return operation;
+            }
         }
     }
     
